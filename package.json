@@ -1,0 +1,12 @@
+{
+  "name": "network-monitor",
+  "version": "0.0.1",
+  "description": "A Windows-focused security application that observes network activity, analyzes behavior, detects anomalies, and gives users understandable warnings about unusual traffic.",
+  "license": "ISC",
+  "author": "Mohammad Javad Fakhraei",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
