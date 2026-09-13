@@ -1,4 +1,5 @@
 import express from 'express';
+import { getTrafficHistory, getAllProcesses } from './db.js';
 
 let cachedConnections = [];
 let lastUpdate = null;
@@ -28,6 +29,26 @@ export function createApp() {
     const pid = parseInt(req.params.pid, 10);
     const filtered = cachedConnections.filter((c) => c.pid === pid);
     res.json({ connections: filtered, lastUpdate, count: filtered.length });
+  });
+
+  app.get('/api/processes', (req, res) => {
+    try {
+      const processes = getAllProcesses();
+      res.json({ processes, count: processes.length });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/history/:pid', (req, res) => {
+    try {
+      const pid = parseInt(req.params.pid, 10);
+      const { since, until } = req.query;
+      const samples = getTrafficHistory(pid, { since, until });
+      res.json({ pid, samples, count: samples.length });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   return app;
