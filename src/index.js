@@ -53,7 +53,7 @@ async function start() {
   }
 
   try {
-    startCapture(DEVICE);
+   await startCapture(DEVICE);
   } catch (err) {
     console.error('[Capture] Failed to start:', err.message);
     console.log('Continuing without packet capture (Stage A mode only)');

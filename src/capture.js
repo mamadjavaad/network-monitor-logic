@@ -1,4 +1,5 @@
 import capModule from 'cap';
+import { getDefaultCaptureDevice } from './network-detect.js';
 const Cap = capModule.Cap;
 const decoders = capModule.decoders;
 const PROTOCOL = decoders.PROTOCOL;
@@ -61,13 +62,13 @@ export function listDevices() {
   return Cap.deviceList();
 }
 
-export function startCapture(deviceName = null) {
-  if (captureInstance) {
+export async function startCapture(deviceName = null){
+ if (captureInstance) {
     console.log('[Capture] Already running');
     return;
   }
 
-  const device = deviceName || Cap.findDevice();
+  const device = deviceName || await getDefaultCaptureDevice();
   if (!device) {
     throw new Error('No capture device found. Run listDevices() to see available interfaces.');
   }
@@ -76,10 +77,8 @@ export function startCapture(deviceName = null) {
   console.log(`[Capture] Starting on device: ${device}`);
 
   const buffer = Buffer.alloc(65535);
-
   captureInstance = new Cap();
   captureInstance.open(device, '', 10 * 1024 * 1024, buffer);
-
   captureInstance.on('packet', (nbytes) => {
     decodePacket(nbytes, buffer);
   });
