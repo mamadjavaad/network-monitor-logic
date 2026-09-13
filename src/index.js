@@ -49,11 +49,11 @@ async function start() {
   }
 
   if (!DEVICE) {
-    console.log('\nNo CAPTURE_DEVICE specified, using Cap.findDevice() default');
+    console.log('\nNo CAPTURE_DEVICE specified, auto-detecting active interface...');
   }
 
   try {
-   await startCapture(DEVICE);
+    await startCapture(DEVICE);
   } catch (err) {
     console.error('[Capture] Failed to start:', err.message);
     console.log('Continuing without packet capture (Stage A mode only)');
