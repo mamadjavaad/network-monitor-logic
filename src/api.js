@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import { getTrafficHistory, getAllProcesses } from './db.js';
 
 let cachedConnections = [];
@@ -15,6 +16,7 @@ export function getConnections() {
 
 export function createApp() {
   const app = express();
+  app.use(cors()); 
   app.use(express.json());
 
   app.get('/health', (req, res) => {
