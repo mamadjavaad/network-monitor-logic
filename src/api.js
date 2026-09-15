@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { getTrafficHistory, getAllProcesses } from './db.js';
+import { getTrafficHistory, getAllProcesses, getProcessSummary } from './db.js';
 
 let cachedConnections = [];
 let lastUpdate = null;
@@ -36,6 +36,15 @@ export function createApp() {
   app.get('/api/processes', (req, res) => {
     try {
       const processes = getAllProcesses();
+      res.json({ processes, count: processes.length });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/processes/summary', (req, res) => {
+    try {
+      const processes = getProcessSummary();
       res.json({ processes, count: processes.length });
     } catch (err) {
       res.status(500).json({ error: err.message });

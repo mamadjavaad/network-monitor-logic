@@ -7,6 +7,7 @@ import {
   diffAndStoreConnections,
   insertTrafficSamples,
   cleanupOldSamples,
+  cleanupOldProcesses,
   closeDb,
 } from './db.js';
 
@@ -66,6 +67,8 @@ async function start() {
     try {
       const deleted = cleanupOldSamples(RETENTION_HOURS);
       if (deleted > 0) console.log(`[Cleanup] Removed ${deleted} traffic samples older than ${RETENTION_HOURS}h`);
+      const deletedProcs = cleanupOldProcesses(RETENTION_HOURS);
+      if (deletedProcs > 0) console.log(`[Cleanup] Removed ${deletedProcs} stale processes older than ${RETENTION_HOURS}h`);
     } catch (err) {
       console.error('[Cleanup] Error:', err.message);
     }

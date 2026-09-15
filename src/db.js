@@ -198,6 +198,30 @@ export function getAllProcesses() {
   return getDb().prepare('SELECT * FROM processes ORDER BY last_seen DESC').all();
 }
 
+export function getProcessSummary({ activeWithinSeconds = 15 } = {}) {
+  const cutoff = new Date(Date.now() - activeWithinSeconds * 1000).toISOString();
+  return getDb().prepare(`
+    SELECT
+      p.pid,
+      p.process_name,
+      p.last_seen,
+      COALESCE(SUM(s.bytes_sent), 0) as total_sent,
+      COALESCE(SUM(s.bytes_recv), 0) as total_recv,
+      (SELECT COUNT(*) FROM connections c WHERE c.pid = p.pid AND c.closed_at IS NULL) as active_connections
+    FROM processes p
+    LEFT JOIN traffic_samples s ON s.pid = p.pid
+    WHERE p.last_seen >= ?
+    GROUP BY p.pid
+    ORDER BY (total_sent + total_recv) DESC
+  `).all(cutoff);
+}
+
+export function cleanupOldProcesses(hours = 48) {
+  const cutoff = new Date(Date.now() - hours * 3600 * 1000).toISOString();
+  const result = getDb().prepare('DELETE FROM processes WHERE last_seen < ?').run(cutoff);
+  return result.changes;
+}
+
 export function cleanupOldSamples(hours = 48) {
   const cutoff = new Date(Date.now() - hours * 3600 * 1000).toISOString();
   const result = getDb().prepare('DELETE FROM traffic_samples WHERE timestamp < ?').run(cutoff);
