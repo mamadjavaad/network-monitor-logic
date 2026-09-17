@@ -216,6 +216,20 @@ export function getProcessSummary({ activeWithinSeconds = 15 } = {}) {
   `).all(cutoff);
 }
 
+export function getTrafficTimeline({ minutes = 30 } = {}) {
+  const since = new Date(Date.now() - minutes * 60 * 1000).toISOString();
+  return getDb().prepare(`
+    SELECT
+      substr(timestamp, 1, 16) as bucket,
+      SUM(bytes_sent) as sent,
+      SUM(bytes_recv) as recv
+    FROM traffic_samples
+    WHERE timestamp >= ?
+    GROUP BY bucket
+    ORDER BY bucket ASC
+  `).all(since);
+}
+
 export function cleanupOldProcesses(hours = 48) {
   const cutoff = new Date(Date.now() - hours * 3600 * 1000).toISOString();
   const result = getDb().prepare('DELETE FROM processes WHERE last_seen < ?').run(cutoff);

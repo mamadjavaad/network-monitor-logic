@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { getTrafficHistory, getAllProcesses, getProcessSummary } from './db.js';
+import { getTrafficHistory, getAllProcesses, getProcessSummary, getTrafficTimeline } from './db.js';
 
 let cachedConnections = [];
 let lastUpdate = null;
@@ -46,6 +46,17 @@ export function createApp() {
     try {
       const processes = getProcessSummary();
       res.json({ processes, count: processes.length });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+
+  app.get('/api/history/timeline', (req, res) => {
+    try {
+      const minutes = parseInt(req.query.minutes || '30', 10);
+      const buckets = getTrafficTimeline({ minutes });
+      res.json({ buckets, count: buckets.length, minutes });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
