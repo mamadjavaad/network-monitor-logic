@@ -48,6 +48,30 @@ function initSchema() {
       bytes_recv INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS alerts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT NOT NULL,
+      severity TEXT NOT NULL,
+      pid INTEGER,
+      process_name TEXT,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      acknowledged INTEGER NOT NULL DEFAULT 0
+    );
+
+
+    CREATE TABLE IF NOT EXISTS known_endpoints (
+      process_name TEXT NOT NULL,
+      remote_addr TEXT NOT NULL,
+      remote_port INTEGER NOT NULL,
+      first_seen TEXT NOT NULL,
+      PRIMARY KEY (process_name, remote_addr, remote_port)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_alerts_created ON alerts(created_at);
+    CREATE INDEX IF NOT EXISTS idx_alerts_type_process ON alerts(type, process_name, created_at);
+
     CREATE INDEX IF NOT EXISTS idx_connections_pid ON connections(pid);
     CREATE INDEX IF NOT EXISTS idx_connections_open ON connections(closed_at) WHERE closed_at IS NULL;
     CREATE INDEX IF NOT EXISTS idx_traffic_pid ON traffic_samples(pid);
@@ -198,6 +222,9 @@ export function getAllProcesses() {
   return getDb().prepare('SELECT * FROM processes ORDER BY last_seen DESC').all();
 }
 
+// Only processes seen in the last `activeWithinSeconds` — anything older is a
+// dead PID still sitting in the table. Cutoff is built in JS because last_seen
+// is stored as a JS toISOString() string, which SQLite's datetime() won't match.
 export function getProcessSummary({ activeWithinSeconds = 15 } = {}) {
   const cutoff = new Date(Date.now() - activeWithinSeconds * 1000).toISOString();
   return getDb().prepare(`
@@ -216,6 +243,8 @@ export function getProcessSummary({ activeWithinSeconds = 15 } = {}) {
   `).all(cutoff);
 }
 
+// Total traffic across all processes, bucketed by minute.
+// substr(timestamp, 1, 16) turns "2026-09-14T12:02:44.569Z" into "2026-09-14T12:02".
 export function getTrafficTimeline({ minutes = 30 } = {}) {
   const since = new Date(Date.now() - minutes * 60 * 1000).toISOString();
   return getDb().prepare(`
@@ -244,4 +273,75 @@ export function cleanupOldSamples(hours = 48) {
 
 export function closeDb() {
   if (db) { db.close(); db = null; }
+}
+
+// ---- alerts / known_endpoints primitives (used by src/alerts.js) ----
+
+export function insertAlert({ type, severity, pid, processName, title, description }) {
+  getDb().prepare(`
+    INSERT INTO alerts (type, severity, pid, process_name, title, description, created_at, acknowledged)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+  `).run(type, severity, pid ?? null, processName ?? null, title, description, new Date().toISOString());
+}
+
+export function hasRecentAlert(type, processName, withinMinutes = 10) {
+  const cutoff = new Date(Date.now() - withinMinutes * 60000).toISOString();
+  const row = getDb().prepare(`
+    SELECT 1 FROM alerts WHERE type = ? AND process_name = ? AND created_at >= ? LIMIT 1
+  `).get(type, processName, cutoff);
+  return !!row;
+}
+
+export function isKnownEndpoint(processName, remoteAddr, remotePort) {
+  const row = getDb().prepare(`
+    SELECT 1 FROM known_endpoints WHERE process_name = ? AND remote_addr = ? AND remote_port = ?
+  `).get(processName, remoteAddr, remotePort);
+  return !!row;
+}
+
+export function recordEndpoint(processName, remoteAddr, remotePort, now) {
+  getDb().prepare(`
+    INSERT OR IGNORE INTO known_endpoints (process_name, remote_addr, remote_port, first_seen)
+    VALUES (?, ?, ?, ?)
+  `).run(processName, remoteAddr, remotePort, now);
+}
+
+export function countKnownEndpoints(processName) {
+  return getDb().prepare(`
+    SELECT COUNT(*) as n FROM known_endpoints WHERE process_name = ?
+  `).get(processName).n;
+}
+
+export function getRecentTrafficSamplesForPid(pid, limit = 20) {
+  return getDb().prepare(`
+    SELECT bytes_sent, bytes_recv FROM traffic_samples
+    WHERE pid = ? ORDER BY timestamp DESC LIMIT ?
+  `).all(pid, limit);
+}
+
+export function getDistinctActivePids(withinMinutes = 5) {
+  const cutoff = new Date(Date.now() - withinMinutes * 60000).toISOString();
+  return getDb().prepare(`
+    SELECT DISTINCT pid FROM traffic_samples WHERE timestamp >= ?
+  `).all(cutoff).map(r => r.pid);
+}
+
+export function getProcessNameByPid(pid) {
+  const row = getDb().prepare('SELECT process_name FROM processes WHERE pid = ?').get(pid);
+  return row?.process_name ?? `PID:${pid}`;
+}
+
+export function getRecentAlerts(limit = 20) {
+  return getDb().prepare('SELECT * FROM alerts ORDER BY created_at DESC LIMIT ?').all(limit);
+}
+
+export function acknowledgeAlert(id) {
+  const result = getDb().prepare('UPDATE alerts SET acknowledged = 1 WHERE id = ?').run(id);
+  return result.changes > 0;
+}
+
+export function cleanupOldAlerts(hours = 168) {
+  const cutoff = new Date(Date.now() - hours * 3600 * 1000).toISOString();
+  const result = getDb().prepare('DELETE FROM alerts WHERE created_at < ?').run(cutoff);
+  return result.changes;
 }

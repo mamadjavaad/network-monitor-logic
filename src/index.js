@@ -8,8 +8,10 @@ import {
   insertTrafficSamples,
   cleanupOldSamples,
   cleanupOldProcesses,
+  cleanupOldAlerts,
   closeDb,
 } from './db.js';
+import { runAlertChecks } from './alerts.js';
 
 const PORT = process.env.PORT || 3000;
 const POLL_INTERVAL_MS = parseInt(process.env.POLL_INTERVAL_MS || '2000', 10);
@@ -30,6 +32,7 @@ async function pollConnections() {
     upsertProcesses(enrichedConnections, now);
     diffAndStoreConnections(enrichedConnections, now);
     insertTrafficSamples(enrichedConnections, now);
+    runAlertChecks(enrichedConnections, now);
 
     const totalSent = enrichedConnections.reduce((sum, c) => sum + (c.bytesSent || 0), 0);
     const totalRecv = enrichedConnections.reduce((sum, c) => sum + (c.bytesRecv || 0), 0);
@@ -69,6 +72,8 @@ async function start() {
       if (deleted > 0) console.log(`[Cleanup] Removed ${deleted} traffic samples older than ${RETENTION_HOURS}h`);
       const deletedProcs = cleanupOldProcesses(RETENTION_HOURS);
       if (deletedProcs > 0) console.log(`[Cleanup] Removed ${deletedProcs} stale processes older than ${RETENTION_HOURS}h`);
+      const deletedAlerts = cleanupOldAlerts();
+      if (deletedAlerts > 0) console.log(`[Cleanup] Removed ${deletedAlerts} old alerts`);
     } catch (err) {
       console.error('[Cleanup] Error:', err.message);
     }

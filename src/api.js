@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { getTrafficHistory, getAllProcesses, getProcessSummary, getTrafficTimeline } from './db.js';
+import { getTrafficHistory, getAllProcesses, getProcessSummary, getTrafficTimeline, getRecentAlerts, acknowledgeAlert } from './db.js';
 
 let cachedConnections = [];
 let lastUpdate = null;
@@ -68,6 +68,26 @@ export function createApp() {
       const { since, until } = req.query;
       const samples = getTrafficHistory(pid, { since, until });
       res.json({ pid, samples, count: samples.length });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/alerts', (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit || '20', 10);
+      const alerts = getRecentAlerts(limit);
+      res.json({ alerts, count: alerts.length });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/alerts/:id/acknowledge', (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const ok = acknowledgeAlert(id);
+      res.json({ ok });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
