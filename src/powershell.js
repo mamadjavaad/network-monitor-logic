@@ -18,7 +18,7 @@ const TCP_STATE_MAP = {
 
 const PS_TCP_CMD = `Get-NetTCPConnection | Select-Object State, LocalAddress, LocalPort, RemoteAddress, RemotePort, OwningProcess | ConvertTo-Json -Depth 3`;
 const PS_UDP_CMD = `Get-NetUDPEndpoint | Select-Object LocalAddress, LocalPort, RemoteAddress, RemotePort, OwningProcess | ConvertTo-Json -Depth 3`;
-const PS_PROCESS_CMD = (pids) => `Get-Process -Id ${pids.join(',')} | Select-Object Id, ProcessName | ConvertTo-Json -Depth 2`;
+const PS_PROCESS_CMD = (pids) => `Get-Process -Id ${pids.join(',')} -ErrorAction SilentlyContinue | Select-Object Id, ProcessName | ConvertTo-Json -Depth 2`;
 
 function runPowerShell(command) {
   return new Promise((resolve, reject) => {
