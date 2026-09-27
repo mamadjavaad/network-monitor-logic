@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import { getTrafficHistory, getAllProcesses, getProcessSummary, getTrafficTimeline, getRecentAlerts, acknowledgeAlert } from './db.js';
+import { getTrafficHistory, getProcessSummary, getTrafficTimeline, getRecentAlerts, acknowledgeAlert } from './db.js';
 
 let cachedConnections = [];
 let lastUpdate = null;
@@ -25,21 +25,6 @@ export function createApp() {
 
   app.get('/api/connections', (req, res) => {
     res.json(getConnections());
-  });
-
-  app.get('/api/connections/:pid', (req, res) => {
-    const pid = parseInt(req.params.pid, 10);
-    const filtered = cachedConnections.filter((c) => c.pid === pid);
-    res.json({ connections: filtered, lastUpdate, count: filtered.length });
-  });
-
-  app.get('/api/processes', (req, res) => {
-    try {
-      const processes = getAllProcesses();
-      res.json({ processes, count: processes.length });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
   });
 
   app.get('/api/processes/summary', (req, res) => {

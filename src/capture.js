@@ -9,7 +9,6 @@ const IP_PROTOCOLS = PROTOCOL.IP;
 
 let trafficByFlow = new Map();
 let captureInstance = null;
-let selectedDevice = null;
 
 function normalizeIp(ip) {
   if (!ip) return '';
@@ -73,7 +72,6 @@ export async function startCapture(deviceName = null){
     throw new Error('No capture device found. Run listDevices() to see available interfaces.');
   }
 
-  selectedDevice = device;
   console.log(`[Capture] Starting on device: ${device}`);
 
   const buffer = Buffer.alloc(65535);
@@ -100,8 +98,4 @@ export function getTrafficByFlow() {
 
 export function clearTrafficByFlow() {
   trafficByFlow.clear();
-}
-
-export function getSelectedDevice() {
-  return selectedDevice;
 }

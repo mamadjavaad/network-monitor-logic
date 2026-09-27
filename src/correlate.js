@@ -11,10 +11,6 @@ function makeConnectionKey(conn) {
   return `${conn.protocol}:${localIp}:${conn.localPort}-${remoteIp}:${conn.remotePort}`;
 }
 
-function makeFlowKey(protocol, localIp, localPort, remoteIp, remotePort) {
-  return `${protocol}:${normalizeIp(localIp)}:${localPort}-${normalizeIp(remoteIp)}:${remotePort}`;
-}
-
 export async function correlateTrafficWithConnections(trafficByFlow) {
   const connections = await getAllConnections();
   
