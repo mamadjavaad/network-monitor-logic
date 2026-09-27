@@ -1,6 +1,13 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'node:path';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { getTrafficHistory, getProcessSummary, getTrafficTimeline, getRecentAlerts, acknowledgeAlert } from './db.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const FRONTEND_DIST = path.join(__dirname, '..', 'public');
 
 let cachedConnections = [];
 let lastUpdate = null;
@@ -77,6 +84,18 @@ export function createApp() {
       res.status(500).json({ error: err.message });
     }
   });
+
+  if (fs.existsSync(FRONTEND_DIST)) {
+    app.use(express.static(FRONTEND_DIST));
+
+    app.get(/^(?!\/api).*/, (req, res) => {
+      res.sendFile(path.join(FRONTEND_DIST, 'index.html'));
+    });
+
+    console.log(`[Frontend] Serving built UI from ${FRONTEND_DIST}`);
+  } else {
+    console.log('[Frontend] No build found at', FRONTEND_DIST, '— API-only mode');
+  }
 
   return app;
 }
