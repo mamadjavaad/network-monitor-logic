@@ -13,6 +13,9 @@ function getDb() {
     db.pragma('journal_mode = WAL');
     db.pragma('busy_timeout = 5000');
     initSchema();
+
+    db.prepare('UPDATE connections SET closed_at = ? WHERE closed_at IS NULL')
+      .run(new Date().toISOString());
   }
   return db;
 }
@@ -112,8 +115,9 @@ export function diffAndStoreConnections(connections, now) {
     UPDATE connections SET closed_at = ?, last_seen = ? WHERE id = ?
   `);
 
-  const touchConn = getDb().prepare(`
-    UPDATE connections SET last_seen = ? WHERE id = ?
+
+  const updateState = getDb().prepare(`
+    UPDATE connections SET state = ? WHERE id = ?
   `);
 
   const currentSnapshot = new Map();
@@ -136,16 +140,7 @@ export function diffAndStoreConnections(connections, now) {
         const prevState = prevConn.stateName || prevConn.state;
         const currState = conn.stateName || conn.state;
         if (prevState !== currState) {
-          closeConn.run(now, now, prevConn._dbId);
-          insertConn.run(
-            conn.pid, conn.protocol,
-            conn.localAddress || conn.local_addr, conn.localPort || conn.local_port,
-            conn.remoteAddress || conn.remote_addr, conn.remotePort || conn.remote_port,
-            currState,
-            now, now
-          );
-        } else {
-          touchConn.run(now, prevConn._dbId);
+          updateState.run(currState, prevConn._dbId);
         }
       }
     }
@@ -202,6 +197,7 @@ export function insertTrafficSamples(connections, now) {
 
   const insertMany = getDb().transaction(() => {
     for (const [pid, traffic] of byPid) {
+      if (traffic.bytesSent === 0 && traffic.bytesRecv === 0) continue;
       stmt.run(pid, now, traffic.bytesSent, traffic.bytesRecv);
     }
   });
@@ -243,8 +239,6 @@ export function getProcessSummary({ activeWithinSeconds = 15 } = {}) {
   `).all(cutoff);
 }
 
-// Total traffic across all processes, bucketed by minute.
-// substr(timestamp, 1, 16) turns "2026-09-14T12:02:44.569Z" into "2026-09-14T12:02".
 export function getTrafficTimeline({ minutes = 30 } = {}) {
   const since = new Date(Date.now() - minutes * 60 * 1000).toISOString();
   return getDb().prepare(`
