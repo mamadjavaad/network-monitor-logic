@@ -1,9 +1,18 @@
 import Database from 'better-sqlite3';
 import { join, dirname } from 'path';
+import { mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const DB_PATH = join(__dirname, '..', 'network-monitor.db');
+
+const CURRENT_DIR = dirname(fileURLToPath(import.meta.url));
+
+
+const IS_PACKAGED = typeof process.pkg !== 'undefined';
+const DATA_DIR = IS_PACKAGED
+  ? join(process.env.LOCALAPPDATA || process.env.APPDATA || process.cwd(), 'network-monitor')
+  : join(CURRENT_DIR, '..');
+mkdirSync(DATA_DIR, { recursive: true });
+const DB_PATH = join(DATA_DIR, 'network-monitor.db');
 
 let db;
 
@@ -269,7 +278,6 @@ export function closeDb() {
   if (db) { db.close(); db = null; }
 }
 
-// ---- alerts / known_endpoints primitives (used by src/alerts.js) ----
 
 export function insertAlert({ type, severity, pid, processName, title, description }) {
   getDb().prepare(`

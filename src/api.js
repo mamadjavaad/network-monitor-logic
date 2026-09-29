@@ -5,9 +5,10 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { getTrafficHistory, getProcessSummary, getTrafficTimeline, getRecentAlerts, acknowledgeAlert } from './db.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const FRONTEND_DIST = path.join(__dirname, '..', 'public');
+const CURRENT_DIR = path.dirname(fileURLToPath(import.meta.url));
+
+const FRONTEND_DIST = path.join(CURRENT_DIR, '..', 'public');
 
 let cachedConnections = [];
 let lastUpdate = null;
