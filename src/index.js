@@ -43,7 +43,7 @@ async function pollConnections() {
 }
 
 async function start() {
-  console.log('Starting Stage C: Packet capture + PID correlation + persistence...');
+  console.log('Starting Network Radar');
   console.log(`Poll interval: ${POLL_INTERVAL_MS}ms`);
 
   console.log('\nAvailable capture devices:');
@@ -53,14 +53,13 @@ async function start() {
   }
 
   if (!DEVICE) {
-    console.log('\nNo CAPTURE_DEVICE specified, auto-detecting active interface...');
+    console.log('\nauto-detecting active interface...');
   }
 
   try {
     await startCapture(DEVICE);
   } catch (err) {
     console.error('[Capture] Failed to start:', err.message);
-    console.log('Continuing without packet capture (Stage A mode only)');
   }
 
   await pollConnections();
@@ -81,12 +80,7 @@ async function start() {
 
   app.listen(PORT, () => {
     console.log(`\nAPI listening on http://localhost:${PORT}`);
-    console.log('Endpoints:');
     console.log('  GET /health');
-    console.log('  GET /api/connections');
-    console.log('  GET /api/connections/:pid');
-    console.log('  GET /api/processes');
-    console.log('  GET /api/history/:pid?since=&until=');
   });
 
   process.on('SIGINT', () => {
